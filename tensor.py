@@ -1,12 +1,8 @@
-from typing import Callable
 import warnings
 from functools import wraps
-from itertools import takewhile, count, islice
 
 import numpy as np
 from scipy.sparse.linalg import svds
-from scipy.sparse import diags, SparseEfficiencyWarning
-from scipy.linalg import solve_banded
 
 try:
     from sklearn.utils.extmath import randomized_svd
@@ -51,7 +47,9 @@ def core_growth_callback(growth_tol):
     return check_core_growth
 
 def sa_hooi(
-        idx, val, shape, mlrank, attention_matrix=None, scaling_weights=None,
+        idx, val, shape, mlrank,
+        attention_matrix = None,
+        scaling_weights = None,
         max_iters = 20,
         parallel_ttm = False,
         growth_tol = 0.001,
@@ -106,46 +104,6 @@ def sa_hooi(
         except StopIteration:
             break
     return factors
-
-
-def exp_decay(decay_factor, n):
-    return np.e**(-(n-1)*decay_factor)
-
-def lin_decay(decay_factor, n):
-    return n**(-decay_factor)
-
-def attention_weights(decay_factor, cutoff, max_elements=None, exponential_decay=False, reverse=False):
-    if (decay_factor == 0 or cutoff == 0) and (max_elements is None or max_elements <= 0):
-        raise SATFError('Infinite sequence.')
-    decay_function = exp_decay if exponential_decay else lin_decay
-    weights = takewhile(lambda x: x>=cutoff, (decay_function(decay_factor, n) for n in count(1, 1)))
-    if max_elements is not None:
-        weights = islice(weights, max_elements)
-    if reverse:
-        return list(reversed(list(weights)))
-    return list(weights)
-
-def form_attention_matrix(size, decay_factor, cutoff=0, span=0, exponential_decay=False, reverse=False, format='csc', stochastic_axis=None, dtype=None):
-    stochastic = stochastic_axis is not None
-    span = min(span or np.iinfo('i8').max, size)
-    weights = attention_weights(decay_factor, cutoff=cutoff, max_elements=span, exponential_decay=exponential_decay, reverse=reverse)
-    diag_values = [np.broadcast_to(w, size) for w in weights]
-    matrix = diags(diag_values, offsets=range(0, -len(diag_values), -1), format=format, dtype=dtype)
-    if stochastic:
-        scalings = matrix.sum(axis=stochastic_axis).A.squeeze()
-        if stochastic_axis == 0:
-            matrix = matrix.dot(diags(1./scalings))
-        else:
-            matrix = diags(1./scalings).dot(matrix)
-    return matrix.asformat(format)
-
-def generate_banded_form(matrix):
-    matrix = matrix.todia()
-    bands = matrix.data
-    offsets = matrix.offsets
-    num_l = (offsets < 0).sum()
-    num_u = (offsets > 0).sum()
-    return (num_l, num_u), bands[np.argsort(offsets)[::-1], :]
 
 
 def get_scaling_weights(frequencies, scaling=1.0):
