@@ -8,7 +8,7 @@ from numba import njit, prange
 
 from polara.lib.sparse import arrange_indices
 
-from tensor import core_growth_callback, initialize_columnwise_orthonormal
+from .tensor import core_growth_callback, initialize_columnwise_orthonormal
 
 PARALLEL_MATVECS = True
 FASTMATH_MATVECS = True
@@ -97,7 +97,7 @@ def series_rmatvec(factors, series_key, attention=None):
 def entity_fiber_matvec(arranged_entity_index, idx, entity_mode, other_factors, hankel_weights, vec):
     _, o_rank = other_factors.shape
     _, s_rank = hankel_weights.shape
-    V = vec.reshape(o_rank, s_rank) # kron(b, a) x = a^T X b
+    V = vec.reshape(o_rank, s_rank) # kron(b, a)^T x = a^T X b
     VX_cache = np.dot(hankel_weights, V.T)
 
     other_entity_mode = 1 - entity_mode
@@ -110,7 +110,7 @@ def entity_fiber_matvec(arranged_entity_index, idx, entity_mode, other_factors, 
             pos = idx[row_id, 2]
             other_entity_id = idx[row_id, other_entity_mode]
             w_i = other_factors[other_entity_id, :]
-            tmp += np.dot(VX_cache[pos, :], w_i) # kron(b, a) x = a^T X b
+            tmp += np.dot(VX_cache[pos, :], w_i) # kron(b, a)^T x = a^T X b
         res[main_entity_id] = tmp
     return res
 
@@ -183,13 +183,13 @@ def hankel_hooi(
     _, arranged_position_index = arranged_indices[2]
     
     factors_store = {}
-    rnd = np.random.RandomState(seed)
+    rng = np.random.default_rng(seed)
     factors_store['users'] = np.empty((n_users, user_rank), dtype=np.float64) # only to initialize linear operators
     # factors_store['items'] = scaling_weights[:, np.newaxis] * initialize_columnwise_orthonormal((n_items, item_rank), rnd)
-    factors_store['items'] =initialize_columnwise_orthonormal((n_items, item_rank), rnd)
+    factors_store['items'] = initialize_columnwise_orthonormal((n_items, item_rank), rng)
     # attn_factors = factors_store['attention'] = attention_matrix.dot(initialize_columnwise_orthonormal((attention_span, attn_rank), rnd))
-    attn_factors = factors_store['attention'] = initialize_columnwise_orthonormal((attention_span, attn_rank), rnd)
-    seqn_factors = factors_store['sequences'] = initialize_columnwise_orthonormal((sequences_size, seqn_rank), rnd)
+    attn_factors = factors_store['attention'] = initialize_columnwise_orthonormal((attention_span, attn_rank), rng)
+    seqn_factors = factors_store['sequences'] = initialize_columnwise_orthonormal((sequences_size, seqn_rank), rng)
 
     factors_store['accum_w_i'] = np.empty((n_positions, user_rank*item_rank), dtype=np.float64) # only to initialize linear operators
     factors_store['hankel_weights'] = np.empty((n_positions, attn_rank*seqn_rank), dtype=np.float64) # only to initialize linear operators
