@@ -1,5 +1,5 @@
-from typing import ClassVar, Optional
-from dataclasses import dataclass, asdict, fields, field
+from typing import Any, ClassVar, Optional
+from dataclasses import dataclass, asdict, fields
 from contextlib import contextmanager
 import numpy as np
 
@@ -22,7 +22,7 @@ class DataFields3D:
     @property
     def labels(self):
         return [getattr(self, field.name) for field in fields(self)]
-    
+
     @property
     def fields(self):
         return asdict(self)
@@ -46,7 +46,7 @@ class Dataset:
         if name is None:
             name = self.__class__.__name__
         self.name = name
-    
+
     def initialize_formats(self, formats):
         if self.is_persistent:
             for format in formats:
@@ -57,24 +57,29 @@ class Dataset:
         return self.get_formatted_data(self.default_format)
 
     def get_formatted_data(self, format):
-        if format is None: # return original data if format is not specified
+        if not format: # return original data if format is not specified
             return self._data_container['source']
-        format_kwargs = {}
-        if isinstance(format, (tuple, list)):
+
+        format_kwargs = None
+        if isinstance(format, (tuple, list)): # try extract formatting parameters
             format, format_kwargs = format
-            if self._format_kwargs.get(format, None) != format_kwargs:
-                # cleanup cached data - it was obtained with different settings
-                self.cleanup(format)
-            self._format_kwargs[format] = format_kwargs
-        try:
-            formatted_data = self._data_container[format]
-        except KeyError: # no data in this format -> generate it from defaults
+        if self._format_kwargs.get(format, None) != format_kwargs:
+            self.cleanup(format) # cleanup cached data - it was obtained with different settings
+
+        try: # retrieve data in the specified format if exists
+            return self._data_container[format]
+        except KeyError: # no data in this format, generate from scratch
             data_formatter = DataFormatter(format)
-            formatted_data = data_formatter(self, **format_kwargs)
-            if self.is_persistent: # store data in requested format permanently
-                self._data_container[format] = formatted_data
-        return formatted_data
-    
+            formatted_data = data_formatter(self, **(format_kwargs or {}))
+            if self.is_persistent: # store data in the requested format permanently
+                self.store_format(formatted_data, format, format_kwargs)
+            return formatted_data
+
+    def store_format(self, data: Any, format: str, format_kwargs: Optional[dict]=None):
+        self._data_container[format] = data
+        if format_kwargs:
+            self._format_kwargs[format] = format_kwargs
+
     @contextmanager
     def format(self, format: str):
         # store current values of data formats
@@ -85,7 +90,7 @@ class Dataset:
             yield self
         finally: # restore initial values
             self.default_format = default_format
-    
+
     def has_format(self, format: str):
         try:
             data = self._data_container[format]
@@ -99,11 +104,12 @@ class Dataset:
         if not isinstance(formats, (list, set, tuple)):
             formats = [formats]
         for format in formats:
-            if format != 'source': # leave source data intact
-                if format in self._data_container:
-                    del self._data_container[format]
-                if format in self._format_kwargs:
-                    del self._format_kwargs[format]
+            if format == 'source': # leave source data intact
+                continue
+            if format in self._data_container:
+                del self._data_container[format]
+            if format in self._format_kwargs:
+                del self._format_kwargs[format]
 
 
 class DataFormatter:
@@ -112,9 +118,9 @@ class DataFormatter:
         self._formatters = {
             'spatio_temporal_tensor': dataframe_to_spatiotemporal,
         }
-    
+
     def __call__(self, dataset: Dataset, format: Optional[str]=None, **kwargs):
-        return self.format(dataset, format, **kwargs) 
+        return self.format(dataset, format, **kwargs)
 
     def format(self, dataset: Dataset, format: str, **kwargs):
         if format is None:
@@ -126,7 +132,7 @@ class DataFormatter:
         data = dataset._data_container['source']
         # TODO allow to format data based on alternative formats other than source
         return formatter(data, dataset.fields, **kwargs)
-    
+
     def register(self, format, formatter):
         self._formatters[format] = formatter
 
