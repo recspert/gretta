@@ -120,6 +120,8 @@ def entity_matvec(arranged_entity_index, idx, factors, entity_key, scaling=None)
     def matvec(vec):
         other_factors = factors[other_entity]
         hankel_weights = factors['hankel_weights']
+        if vec.ndim > 1: # compatibility with .reshape in numba (unsuported for non-contiguous arrays)
+            vec = np.ascontiguousarray(vec)
         result = entity_fiber_matvec(arranged_entity_index, idx, entity_mode, other_factors, hankel_weights, vec)
         if scaling is not None:
             result = scaling * result
