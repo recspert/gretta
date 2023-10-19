@@ -9,8 +9,7 @@ try:
 except ImportError:
     randomized_svd = None
 
-from polara.lib.sparse import arrange_indices
-from polara.lib.tensor import ttm3d_seq, ttm3d_par
+from .sparse import arrange_indices, ttm3d_seq, ttm3d_par
 
 
 class SATFError(Exception):
@@ -46,7 +45,7 @@ def core_growth_callback(growth_tol):
     check_core_growth.core_norm = 0
     return check_core_growth
 
-def sa_hooi(
+def tensor_factors(
         idx, val, shape, mlrank,
         attention_matrix = None,
         scaling_weights = None,
@@ -59,7 +58,7 @@ def sa_hooi(
     ):
     _, n_items, n_positions = shape
     r0, r1, r2 = mlrank
-    
+
     tensor_data = idx, val, shape
     if not isinstance(parallel_ttm, (list, tuple)):
         parallel_ttm = [parallel_ttm] * len(shape)
@@ -81,11 +80,11 @@ def sa_hooi(
     else:
         svd = svds
         svd_config = lambda rank: dict(k=rank, return_singular_vectors='u')
-    
+
     if iter_callback is None:
         iter_callback = core_growth_callback(growth_tol)
-        
-    
+
+
     for step in range(max_iters):
         ttm0 = ttm[0](*tensor_data, ua, uw, ((2, 0), (1, 0)), *index_data[0]).reshape(shape[0], r1*r2)
         u0, *_ = svd(ttm0, **svd_config(r0))

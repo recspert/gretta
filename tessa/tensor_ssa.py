@@ -6,8 +6,7 @@ from scipy.sparse import diags
 from scipy.sparse.linalg import LinearOperator, svds
 from numba import njit, prange
 
-from polara.lib.sparse import arrange_indices
-
+from .sparse import arrange_indices
 from .tensor import core_growth_callback, initialize_columnwise_orthonormal
 
 PARALLEL_MATVECS = True
@@ -58,7 +57,7 @@ def series_matvec(factors, series_key, attention=None):
     n_pos, ee_rank = factors['accum_w_i'].shape
     dim_2 = sf_dim
     dim_1 = n_pos - dim_2 + 1
-    
+
     @njit(parallel=PARALLEL_MATVECS, fastmath=FASTMATH_MATVECS)
     def hankel_series_mul(W, V, accum_w_i, n_pos, dim_1, dim_2):
         res = np.empty((n_pos, dim_1), dtype=np.float64)
@@ -67,7 +66,7 @@ def series_matvec(factors, series_key, attention=None):
             vec = np.dot(W, tmp)
             res[i, :] = hankel_series_matvec1(i, vec, dim_1, dim_2)
         return res.sum(axis=0)
-    
+
     def matvec(vec):
         series_factors = factors[other_series]
         accum_w_i = factors['accum_w_i']
@@ -163,7 +162,7 @@ def entity_rmatvec(arranged_position_index, idx, factors, entity_key, scaling=No
     return rmatvec
 
 
-def hankel_hooi(
+def tessa_factors(
         idx, shape, mlrank, attention_span,
         # attention_matrix = None,
         # scaling_weights = None,
@@ -181,7 +180,7 @@ def hankel_hooi(
     _, arranged_user_index = arranged_indices[0]
     _, arranged_item_index = arranged_indices[1]
     _, arranged_position_index = arranged_indices[2]
-    
+
     factors_store = {}
     rng = np.random.default_rng(seed)
     factors_store['users'] = np.empty((n_users, user_rank), dtype=np.float64) # only to initialize linear operators
@@ -199,21 +198,21 @@ def hankel_hooi(
     attn_matvec = series_matvec(factors_store, 'attention', None)
     attn_rmatvec = series_rmatvec(factors_store, 'attention', None)
     attn_linop = LinearOperator((attention_span, seqn_rank*user_rank*item_rank), attn_matvec, attn_rmatvec)
-    
+
     seqn_matvec = series_matvec(factors_store, 'sequences')
     seqn_rmatvec = series_rmatvec(factors_store, 'sequences')
     seqn_linop = LinearOperator((sequences_size, attn_rank*user_rank*item_rank), seqn_matvec, seqn_rmatvec)
-    
+
     user_matvec = entity_matvec(arranged_user_index, idx, factors_store, 'users')
     user_rmatvec = entity_rmatvec(arranged_position_index, idx, factors_store, 'users')
     user_linop = LinearOperator((n_users, attn_rank*seqn_rank*item_rank), user_matvec, user_rmatvec)
-    
+
     # item_matvec = entity_matvec(arranged_item_index, idx, factors_store, 'items', scaling_weights)
     # item_rmatvec = entity_rmatvec(arranged_position_index, idx, factors_store, 'items', scaling_weights)
     item_matvec = entity_matvec(arranged_item_index, idx, factors_store, 'items', None)
     item_rmatvec = entity_rmatvec(arranged_position_index, idx, factors_store, 'items', None)
     item_linop = LinearOperator((n_items, attn_rank*seqn_rank*user_rank), item_matvec, item_rmatvec)
-    
+
     if iter_callback is None:
         iter_callback = core_growth_callback(growth_tol)
 
@@ -222,9 +221,9 @@ def hankel_hooi(
 
         u_user, *_ = svds(user_linop, k=user_rank, return_singular_vectors='u')
         user_factors = factors_store['users'] = np.ascontiguousarray(u_user)
-        
+
         u_item, *_ = svds(item_linop, k=item_rank, return_singular_vectors='u')
-        # item_factors = factors_store['items'] = np.ascontiguousarray(u_item * scaling_weights[:, np.newaxis])    
+        # item_factors = factors_store['items'] = np.ascontiguousarray(u_item * scaling_weights[:, np.newaxis])
         item_factors = factors_store['items'] = np.ascontiguousarray(u_item)
 
         factors_store['accum_w_i'] = accum_kron_weights(arranged_position_index, idx, user_factors, item_factors)
@@ -232,10 +231,10 @@ def hankel_hooi(
         u_attn, *_ = svds(attn_linop, k=attn_rank, return_singular_vectors='u')
         # attn_factors = factors_store['attention'] = np.ascontiguousarray(attention_matrix.dot(u_attn))
         attn_factors = factors_store['attention'] = np.ascontiguousarray(u_attn)
-        
+
         u_seqn, ss, _ = svds(seqn_linop, k=seqn_rank, return_singular_vectors='u')
         seqn_factors = factors_store['sequences'] = np.ascontiguousarray(u_seqn)
-        
+
         raw_factors = (u_user, u_item, u_attn, u_seqn)
         try:
             core_norm = np.linalg.norm(ss)
