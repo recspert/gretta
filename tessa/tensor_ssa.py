@@ -165,7 +165,8 @@ def entity_rmatvec(arranged_position_index, idx, factors, entity_key, scaling=No
 
 
 def tessa_factors(
-        idx, shape, mlrank, attention_span,
+        idx, shape, mlrank,
+        attention_span,
         # attention_matrix = None,
         # scaling_weights = None,
         max_iters = 20,
@@ -196,8 +197,8 @@ def tessa_factors(
     factors_store['hankel_weights'] = np.empty((n_positions, attn_rank*seqn_rank), dtype=np.float64) # only to initialize linear operators
 
     # attn_matvec = series_matvec(factors_store, 'attention', attention_matrix.tocsc())
-    # attn_rmatvec = series_rmatvec(factors_store, 'attention', attention_matrix.tocsr())
     attn_matvec = series_matvec(factors_store, 'attention', None)
+    # attn_rmatvec = series_rmatvec(factors_store, 'attention', attention_matrix.tocsr())
     attn_rmatvec = series_rmatvec(factors_store, 'attention', None)
     attn_linop = LinearOperator((attention_span, seqn_rank*user_rank*item_rank), attn_matvec, attn_rmatvec)
 
@@ -210,8 +211,8 @@ def tessa_factors(
     user_linop = LinearOperator((n_users, attn_rank*seqn_rank*item_rank), user_matvec, user_rmatvec)
 
     # item_matvec = entity_matvec(arranged_item_index, idx, factors_store, 'items', scaling_weights)
-    # item_rmatvec = entity_rmatvec(arranged_position_index, idx, factors_store, 'items', scaling_weights)
     item_matvec = entity_matvec(arranged_item_index, idx, factors_store, 'items', None)
+    # item_rmatvec = entity_rmatvec(arranged_position_index, idx, factors_store, 'items', scaling_weights)
     item_rmatvec = entity_rmatvec(arranged_position_index, idx, factors_store, 'items', None)
     item_linop = LinearOperator((n_items, attn_rank*seqn_rank*user_rank), item_matvec, item_rmatvec)
 
