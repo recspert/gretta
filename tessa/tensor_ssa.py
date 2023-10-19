@@ -86,7 +86,7 @@ def series_rmatvec(factors, series_key, attention=None):
         accum_w_i = factors['accum_w_i']
         if attention is not None:
             vec = attention.dot(vec)
-        hankel_weights = fftconvolve(series_factors, vec[:, np.newaxis])
+        hankel_weights = fftconvolve(series_factors, vec.reshape(-1, 1))
         res = accum_w_i.T @ hankel_weights
         return res.ravel()
     return rmatvec
