@@ -1,5 +1,5 @@
 # GRETTA
-Generalized Restricted Tensor Timeseries Analysis.
+**G**eneralized **RE**stricted **T**ensor **T**imeseries **A**nalysis.
 
 This package is designed to perform multivariate analysis of incomplete timeseries based on the generalization of the restricted SSA method to sparse higher order (3D) data.
 See an example on the analysis of spatiotemporal humidity data in the [Example-1.ipynb](Example-1.ipynb) jupyter notebook.
