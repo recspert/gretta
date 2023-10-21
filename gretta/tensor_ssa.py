@@ -13,7 +13,7 @@ PARALLEL_MATVECS = True
 FASTMATH_MATVECS = True
 DTYPE = np.float64
 
-class TESSAError(Exception):
+class GRETTAError(Exception):
     pass
 
 
@@ -164,7 +164,7 @@ def entity_rmatvec(arranged_position_index, idx, factors, entity_key, scaling=No
     return rmatvec
 
 
-def tessa_factors(
+def gretta_factors(
         idx, shape, mlrank,
         attention_span,
         # attention_matrix = None,
@@ -255,7 +255,7 @@ def lin_decay(decay_factor, n):
 
 def attention_weights(decay_factor, cutoff, max_elements=None, exponential_decay=False, reverse=False):
     if (decay_factor == 0 or cutoff == 0) and (max_elements is None or max_elements <= 0):
-        raise TESSAError('Infinite sequence.')
+        raise GRETTAError('Infinite sequence.')
     decay_function = exp_decay if exponential_decay else lin_decay
     weights = takewhile(lambda x: x>=cutoff, (decay_function(decay_factor, n) for n in count(1, 1)))
     if max_elements is not None:
