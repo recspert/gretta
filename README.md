@@ -4,11 +4,14 @@
 This package is designed to perform multivariate analysis of incomplete timeseries based on the generalization of the restricted SSA method to sparse higher order (3D) data.
 See an example on the analysis of spatiotemporal humidity data in the [Example-1.ipynb](Example-1.ipynb) jupyter notebook.
 
+# Installation
+`pip install gretta`
+
 # Requirements
-- numpy
-- scipy
-- pandas
-- numba
+- `numpy`
+- `scipy`
+- `pandas`
+- `numba`
 
 # Citation
 If you use `gretta` in published research, please cite:
